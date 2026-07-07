@@ -1,0 +1,2 @@
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points/BPE105_0.1MeV.mac,BPE105_0.1MeV,BPE105_0.1MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points/W50_0.1MeV.mac,W50_0.1MeV,W50_0.1MeV.mac

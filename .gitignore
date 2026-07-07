@@ -1,0 +1,16 @@
+# Build artifacts (regenerate via setup.sh / cmake+make)
+build/
+
+# HTCondor job outputs (regenerate by resubmitting condor/*.sub)
+condor/results/
+
+# Generated comparison plots (regenerate via generate_all_plots.py)
+plots_full/
+plots_mini/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Editor/OS cruft
+.DS_Store

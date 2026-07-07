@@ -1,0 +1,5 @@
+/det/setMaterial Tungsten
+/det/setThickness 50 cm
+/run/initialize
+/beam/energy 500 MeV
+/run/beamOn 5000

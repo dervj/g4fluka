@@ -1,0 +1,12 @@
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points/BPE105_100MeV.mac,BPE105_100MeV,BPE105_100MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points/BPE105_10MeV.mac,BPE105_10MeV,BPE105_10MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points/BPE105_1MeV.mac,BPE105_1MeV,BPE105_1MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points/BPE105_200MeV.mac,BPE105_200MeV,BPE105_200MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points/BPE105_500MeV.mac,BPE105_500MeV,BPE105_500MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points/BPE105_50MeV.mac,BPE105_50MeV,BPE105_50MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points/W50_100MeV.mac,W50_100MeV,W50_100MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points/W50_10MeV.mac,W50_10MeV,W50_10MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points/W50_1MeV.mac,W50_1MeV,W50_1MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points/W50_200MeV.mac,W50_200MeV,W50_200MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points/W50_500MeV.mac,W50_500MeV,W50_500MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points/W50_50MeV.mac,W50_50MeV,W50_50MeV.mac

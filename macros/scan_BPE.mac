@@ -1,0 +1,36 @@
+# scan_BPE.mac
+# ─────────────────────────────────────────────────────────────────
+# Scan neutron beam energies through the 10.5 cm BPE slab.
+# BPE = Borated Poly-Ethylene:
+#   rho=0.95 g/cm3, 5% B + 85.6% Polyethylene + 9.4% H (by mass)
+#   as defined in the FLUKA COMPOUND BPE card.
+# Run: ./g4fluka scan_BPE.mac
+# ─────────────────────────────────────────────────────────────────
+
+/det/setMaterial BPE
+/det/setThickness 10.5 cm
+/run/initialize
+
+# ── 1 MeV ────────────────────────────────────────────────────────
+/beam/energy 1.0 MeV
+/run/beamOn 500000
+
+# ── 10 MeV ───────────────────────────────────────────────────────
+/beam/energy 10.0 MeV
+/run/beamOn 500000
+
+# ── 50 MeV ───────────────────────────────────────────────────────
+/beam/energy 50.0 MeV
+/run/beamOn 500000
+
+# ── 100 MeV ──────────────────────────────────────────────────────
+/beam/energy 100.0 MeV
+/run/beamOn 500000
+
+# ── 200 MeV ──────────────────────────────────────────────────────
+/beam/energy 200.0 MeV
+/run/beamOn 500000
+
+# ── 500 MeV (FLUKA default) ───────────────────────────────────────
+/beam/energy 500.0 MeV
+/run/beamOn 500000

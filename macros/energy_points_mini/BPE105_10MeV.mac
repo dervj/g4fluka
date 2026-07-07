@@ -1,0 +1,5 @@
+/det/setMaterial BPE
+/det/setThickness 10.5 cm
+/run/initialize
+/beam/energy 10 MeV
+/run/beamOn 5000

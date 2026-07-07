@@ -1,0 +1,37 @@
+# g4fluka.sub — one HTCondor job per (material, energy) point.
+# Submit from the g4fluka/condor/ directory:
+#   condor_submit g4fluka.sub
+#
+# Each job: transfers the prebuilt g4fluka binary + one macro, runs on a
+# worker node with the muoncollider.cern.ch CVMFS repo (which provides the
+# exact Geant4 11.2.0 install the binary was linked against), and streams
+# all output CSVs back into results/<TAG>/.
+
+universe   = vanilla
+executable = run_g4fluka.sh
+arguments  = $(MACROBASE)
+
+# CVMFS repo provides the Geant4 install; OpSysMajorVer>=9 (CentOS9/
+# AlmaLinux9/CentOS10/Ubuntu24/Debian13) is required because the binary was
+# built against AlmaLinux9 libs needing glibc >= 2.34 — CentOS7/8 nodes that
+# also mount the repo fail with GLIBC_2.34/GLIBCXX_3.4.29 not found.
+requirements = (HAS_CVMFS_muoncollider_cern_ch =?= true) && (OpSysMajorVer >= 9)
+
+should_transfer_files   = YES
+when_to_transfer_output  = ON_EXIT
+transfer_input_files    = /scratch/jdervan/flukastudy/g4fluka/build/g4fluka, $(MACRO)
+
+output = $(TAG).out
+error  = $(TAG).err
+log    = $(TAG).log
+
+initialdir = results/$(TAG)
+
+# 500 MeV/50cm W measured at ~63 ms/event locally; budget generously since
+# worker nodes vary and low-energy/BPE points are much faster.
+request_cpus   = 1
+request_memory = 2GB
+request_disk   = 2GB
++JobDurationCategory = "Long"
+
+queue MACRO,TAG,MACROBASE from joblist_01mev.txt

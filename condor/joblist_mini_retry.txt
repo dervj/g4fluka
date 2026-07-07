@@ -1,0 +1,4 @@
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points_mini/BPE105_200MeV.mac,BPE105_200MeV_mini,BPE105_200MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points_mini/BPE105_50MeV.mac,BPE105_50MeV_mini,BPE105_50MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points_mini/W50_10MeV.mac,W50_10MeV_mini,W50_10MeV.mac
+/scratch/jdervan/flukastudy/g4fluka/macros/energy_points_mini/W50_50MeV.mac,W50_50MeV_mini,W50_50MeV.mac

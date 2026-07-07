@@ -1,0 +1,8 @@
+# init_vis.mac – initialise visualisation (interactive mode)
+/vis/open OGL 600x600
+/vis/drawVolume
+/vis/viewer/set/viewpointThetaPhi 90 0
+/vis/viewer/zoom 1.5
+/vis/scene/add/trajectories smooth
+/vis/scene/endOfEventAction accumulate 100
+/run/initialize

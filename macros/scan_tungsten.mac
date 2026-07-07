@@ -1,0 +1,35 @@
+# scan_tungsten.mac
+# ─────────────────────────────────────────────────────────────────
+# Scan neutron beam energies through the 50 cm Tungsten slab.
+# Mirrors the FLUKA setup with THICK=50, ASSIGNMA TUNGSTEN SLABREG.
+# Run: ./g4fluka scan_tungsten.mac
+# ─────────────────────────────────────────────────────────────────
+
+# Geometry: Tungsten, 50 cm thick (default — set explicitly)
+/det/setMaterial Tungsten
+/det/setThickness 50 cm
+/run/initialize
+
+# ── 1 MeV ────────────────────────────────────────────────────────
+/beam/energy 1.0 MeV
+/run/beamOn 500000
+
+# ── 10 MeV ───────────────────────────────────────────────────────
+/beam/energy 10.0 MeV
+/run/beamOn 500000
+
+# ── 50 MeV ───────────────────────────────────────────────────────
+/beam/energy 50.0 MeV
+/run/beamOn 500000
+
+# ── 100 MeV ──────────────────────────────────────────────────────
+/beam/energy 100.0 MeV
+/run/beamOn 500000
+
+# ── 200 MeV ──────────────────────────────────────────────────────
+/beam/energy 200.0 MeV
+/run/beamOn 500000
+
+# ── 500 MeV (FLUKA default) ───────────────────────────────────────
+/beam/energy 500.0 MeV
+/run/beamOn 500000

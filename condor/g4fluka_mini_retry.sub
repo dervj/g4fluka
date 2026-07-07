@@ -1,0 +1,33 @@
+# g4fluka_mini.sub — pipeline smoke test: same 12 (material, energy) points
+# as g4fluka.sub but 5000 primaries instead of 500000 (~1/100th), to verify
+# CVMFS/Geant4/build/output all work correctly on real worker nodes before
+# committing to the multi-hour full-scale scan.
+#
+# Submit from the g4fluka/condor/ directory:
+#   condor_submit g4fluka_mini.sub
+
+universe   = vanilla
+executable = run_g4fluka.sh
+arguments  = $(MACROBASE)
+
+# CVMFS repo provides the Geant4 install; OpSysMajorVer>=9 (CentOS9/
+# AlmaLinux9/CentOS10/Ubuntu24/Debian13) is required because the binary was
+# built against AlmaLinux9 libs needing glibc >= 2.34 — CentOS7/8 nodes that
+# also mount the repo fail with GLIBC_2.34/GLIBCXX_3.4.29 not found.
+requirements = (HAS_CVMFS_muoncollider_cern_ch =?= true) && (OpSysMajorVer >= 9)
+
+should_transfer_files   = YES
+when_to_transfer_output  = ON_EXIT
+transfer_input_files    = /scratch/jdervan/flukastudy/g4fluka/build/g4fluka, $(MACRO)
+
+output = $(TAG).out
+error  = $(TAG).err
+log    = $(TAG).log
+
+initialdir = results/$(TAG)
+
+request_cpus   = 1
+request_memory = 1GB
+request_disk   = 1GB
+
+queue MACRO,TAG,MACROBASE from joblist_mini_retry.txt
