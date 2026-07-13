@@ -43,7 +43,10 @@ private:
         GridSpec spec;
         G4double dx, dy, dz;
         std::vector<double> data;
-        int BinIndex(G4double x, G4double y, G4double z) const;
+        // Distributes totalValue across the z bins spanned by [z1,z2] (any order),
+        // weighted by each bin's fractional overlap with that z range. x,y bin
+        // is fixed at the given (x,y) since SaveZProjection integrates over it anyway.
+        void AddAlongZ(G4double x, G4double y, G4double z1, G4double z2, G4double totalValue);
         void SaveZProjection(const std::string& fname, const std::string& particleTag,
                               double norm) const;
     };

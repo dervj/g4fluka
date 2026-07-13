@@ -20,13 +20,35 @@ MeshSD::Grid MeshSD::MakeGrid(const GridSpec& spec)
     return g;
 }
 
-int MeshSD::Grid::BinIndex(G4double x, G4double y, G4double z) const
+void MeshSD::Grid::AddAlongZ(G4double x, G4double y, G4double z1, G4double z2, G4double totalValue)
 {
     int ix = (int)std::floor((x - spec.xmin)/dx);
     int iy = (int)std::floor((y - spec.ymin)/dy);
-    int iz = (int)std::floor((z - spec.zmin)/dz);
-    if (ix<0||ix>=spec.nx||iy<0||iy>=spec.ny||iz<0||iz>=spec.nz) return -1;
-    return iz*spec.ny*spec.nx + iy*spec.nx + ix;
+    if (ix<0||ix>=spec.nx||iy<0||iy>=spec.ny) return;
+
+    G4double zLo = std::min(z1, z2);
+    G4double zHi = std::max(z1, z2);
+    G4double dzTotal = zHi - zLo;
+
+    // Zero (or negligible) z displacement: can't apportion by overlap,
+    // so credit it all to the single bin containing the step.
+    if (dzTotal <= 0.) {
+        int iz = (int)std::floor((zLo - spec.zmin)/dz);
+        if (iz>=0 && iz<spec.nz)
+            data[iz*spec.ny*spec.nx + iy*spec.nx + ix] += totalValue;
+        return;
+    }
+
+    int izLo = std::max(0, (int)std::floor((zLo - spec.zmin)/dz));
+    int izHi = std::min(spec.nz-1, (int)std::floor((zHi - spec.zmin)/dz));
+
+    for (int iz = izLo; iz <= izHi; ++iz) {
+        G4double binLo = spec.zmin + iz*dz;
+        G4double binHi = binLo + dz;
+        G4double overlap = std::min(zHi, binHi) - std::max(zLo, binLo);
+        if (overlap <= 0.) continue;
+        data[iz*spec.ny*spec.nx + iy*spec.nx + ix] += totalValue * (overlap/dzTotal);
+    }
 }
 
 void MeshSD::Grid::SaveZProjection(const std::string& fname, const std::string& /*particleTag*/,
@@ -71,21 +93,23 @@ void MeshSD::Reset()
 G4bool MeshSD::ProcessHits(G4Step* step, G4TouchableHistory*)
 {
     G4Track* track = step->GetTrack();
-    G4ThreeVector pos = step->GetPreStepPoint()->GetPosition();
+    G4ThreeVector prePos  = step->GetPreStepPoint()->GetPosition();
+    G4ThreeVector postPos = step->GetPostStepPoint()->GetPosition();
 
-    // Energy deposition in GeV (FLUKA USRBIN ENERGY)
-    int ieEdep = fEdep.BinIndex(pos.x(), pos.y(), pos.z());
-    if (ieEdep >= 0) {
-        fEdep.data[ieEdep] += step->GetTotalEnergyDeposit() / GeV;
+    // Energy deposition in GeV (FLUKA USRBIN ENERGY), spread along the step's
+    // z-extent rather than dumped entirely in the pre-step voxel.
+    G4double edep = step->GetTotalEnergyDeposit() / GeV;
+    if (edep > 0.) {
+        fEdep.AddAlongZ(prePos.x(), prePos.y(), prePos.z(), postPos.z(), edep);
     }
 
-    // Neutron track-length flux: tl/V  (FLUKA USRBIN NEUTRON)
+    // Neutron track-length flux: tl/V  (FLUKA USRBIN NEUTRON), likewise
+    // apportioned across every z bin the step actually crosses.
     if (track->GetParticleDefinition() == G4Neutron::Definition()) {
-        int ieNeut = fNeut.BinIndex(pos.x(), pos.y(), pos.z());
-        if (ieNeut >= 0) {
-            G4double stepLen = step->GetStepLength() / cm;  // cm
-            G4double vol     = (fNeut.dx * fNeut.dy * fNeut.dz) / (cm*cm*cm);  // cm^3
-            fNeut.data[ieNeut] += stepLen / vol;
+        G4double stepLen = step->GetStepLength() / cm;  // cm
+        if (stepLen > 0.) {
+            G4double vol = (fNeut.dx * fNeut.dy * fNeut.dz) / (cm*cm*cm);  // cm^3
+            fNeut.AddAlongZ(prePos.x(), prePos.y(), prePos.z(), postPos.z(), stepLen / vol);
         }
     }
 

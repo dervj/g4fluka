@@ -75,6 +75,22 @@ def find_tag(result_dir):
     return fname[len("Edep_Zproj_"):-len(".csv")]
 
 
+_BEAMON_RE = re.compile(r"/run/beamOn\s+(\d+)")
+
+def get_n_primaries(run_dir_name, macros_dir="macros/energy_points"):
+    """Look up the number of primaries for a run from its macro file --
+    the result directory name (e.g. 'W50_500MeV') matches the macro
+    basename by construction. Needed to reconstruct per-bin Poisson counts
+    for USRBDX statistical error bars (the CSVs only store the normalized
+    value, but the raw count is exactly recoverable given N)."""
+    macro_path = os.path.join(macros_dir, f"{run_dir_name}.mac")
+    if not os.path.exists(macro_path):
+        return None
+    with open(macro_path) as f:
+        m = _BEAMON_RE.search(f.read())
+    return int(m.group(1)) if m else None
+
+
 def generate_for_tag(g4dir, tag, outdir, flukadir):
     print(f"--- {tag} ---")
     fluka_tag = g4_tag_to_fluka_tag(tag, flukadir) if flukadir != NO_FLUKA_DIR else tag
@@ -82,8 +98,12 @@ def generate_for_tag(g4dir, tag, outdir, flukadir):
         print(f"  [warn] could not derive a FLUKA tag from '{tag}'; skipping FLUKA overlay")
         fluka_tag = tag
 
+    n_primaries = get_n_primaries(os.path.basename(g4dir))
+    if n_primaries is None:
+        print(f"  [warn] could not determine N primaries for '{tag}'; no G4 error bars")
+
     for pname in pc.PARTICLE_LABELS:
-        pc.compare_one(pname, g4dir, tag, flukadir, fluka_tag, outdir)
+        pc.compare_one(pname, g4dir, tag, flukadir, fluka_tag, outdir, n_primaries)
 
     pc.plot_yield(g4dir, tag, outdir)
 

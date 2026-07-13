@@ -45,10 +45,12 @@ def load_csv(path):
 
 _N_INTERVALS_RE = re.compile(r"N\.\s*of\s+(?:energy|x1)\s+intervals\s+(\d+)", re.IGNORECASE)
 
-def load_fluka_lis(path):
+def _load_fluka_lis_raw(path):
     """
-    Load a FLUKA USRBDX/USRYIELD ASCII export (Flair "tab.lis" or the
-    equivalent rfluka post-processing dump).
+    Parse a FLUKA USRBDX/USRYIELD ASCII export (Flair "tab.lis" or the
+    equivalent rfluka post-processing dump) into an (N,4) array of
+    [low, high, value, error_pct] -- error_pct is NaN where no 4th column
+    is present (e.g. USRBIN Zprof files, which never carry an error column).
 
     These files are NOT simply "every numeric line is a data row": after the
     primary "integrated over solid angle" block (N rows, one per energy/x1
@@ -80,14 +82,27 @@ def load_fluka_lis(path):
         parts = line.split()
         if len(parts) >= 3:
             try:
-                rows.append([float(parts[0]), float(parts[1]), float(parts[2])])
+                lo, hi, val = float(parts[0]), float(parts[1]), float(parts[2])
+                err_pct = float(parts[3]) if len(parts) >= 4 else float("nan")
+                rows.append([lo, hi, val, err_pct])
             except ValueError:
                 continue
         if n_expected is not None and len(rows) >= n_expected:
             break
 
-    data = np.array(rows)
+    return np.array(rows)
+
+def load_fluka_lis(path):
+    """Load a FLUKA ASCII export, returning (low, high, value)."""
+    data = _load_fluka_lis_raw(path)
     return data[:,0], data[:,1], data[:,2]
+
+def load_fluka_lis_with_err(path):
+    """Load a FLUKA USRBDX ASCII export, returning (low, high, value,
+    error_pct). error_pct is FLUKA's own per-bin relative statistical
+    uncertainty in percent; NaN if the file has no 4th column."""
+    data = _load_fluka_lis_raw(path)
+    return data[:,0], data[:,1], data[:,2], data[:,3]
 
 def plot_spectrum(ax, elow, ehigh, vals, label, color, ls="-"):
     emid = np.sqrt(elow * ehigh)   # geometric midpoint for log-scale
@@ -119,7 +134,26 @@ def make_ratio_figure():
         gridspec_kw={"height_ratios": [3, 1], "hspace": 0.08})
     return fig, ax, axr
 
-def compare_one(pname, g4dir, tag, flukadir, fluka_tag, outdir):
+# USRBDX boundary-crossing area used by SteppingAction::WriteCSV (200x200 cm).
+# fBdxNeut[ib] += 1. per crossing (pure analog count, no weighting), and
+# WriteCSV writes val = counts/(N*area*dE) -- so the raw per-bin Poisson
+# count is exactly recoverable from the CSV: counts = val*N*area*dE.
+BDX_AREA_CM2 = 40000.
+
+def g4_bdx_stat_error(elow, ehigh, val, n_primaries):
+    """Poisson statistical error on a G4 USRBDX spectrum, reconstructed from
+    the normalized CSV value (no raw counts are stored, but the counter was
+    unweighted so they're exactly recoverable). Returns NaN where the
+    recovered count is 0 (no error bar drawn there)."""
+    if not n_primaries:
+        return np.full_like(val, np.nan)
+    dE = ehigh - elow
+    counts = val * n_primaries * BDX_AREA_CM2 * dE
+    with np.errstate(divide="ignore", invalid="ignore"):
+        rel_err = np.where(counts > 0, 1.0/np.sqrt(np.maximum(counts, 1)), np.nan)
+    return val * rel_err
+
+def compare_one(pname, g4dir, tag, flukadir, fluka_tag, outdir, n_primaries=None):
     label, color = PARTICLE_LABELS.get(pname, (pname, "black"))
 
     g4_file = os.path.join(g4dir, f"{pname}_{tag}.csv")
@@ -129,31 +163,51 @@ def compare_one(pname, g4dir, tag, flukadir, fluka_tag, outdir):
 
     el_g4, eh_g4, val_g4 = load_csv(g4_file)
     emid_g4 = np.sqrt(el_g4 * eh_g4)
+    err_g4 = g4_bdx_stat_error(el_g4, eh_g4, val_g4, n_primaries)
 
-    # Try to load FLUKA result
+    # Try to load FLUKA result (with its own per-bin error% where available)
     fl_data = None
     for ext in ["_tab.lis", ".csv", ".lis"]:
         fl_file = os.path.join(flukadir, f"{pname}_{fluka_tag}{ext}")
         if os.path.exists(fl_file):
             try:
                 if ext == ".csv":
-                    fl_data = load_csv(fl_file)
+                    elo, ehi, val = load_csv(fl_file)
+                    fl_data = (elo, ehi, val, np.full_like(val, np.nan))
                 else:
-                    fl_data = load_fluka_lis(fl_file)
+                    fl_data = load_fluka_lis_with_err(fl_file)
             except Exception as e:
                 print(f"  [warn] Could not load FLUKA file {fl_file}: {e}")
             break
 
     if fl_data is not None:
-        el_fl, eh_fl, val_fl = fl_data
+        el_fl, eh_fl, val_fl, fl_err_pct = fl_data
+        err_fl = val_fl * fl_err_pct / 100.
         emid_fl = np.sqrt(el_fl * eh_fl)
         val_fl_on_g4 = rebin_loglog(emid_g4, emid_fl, val_fl)
         ratio = val_g4 / val_fl_on_g4
 
+        # Combined relative statistical error on the ratio (quadrature sum);
+        # FLUKA's relative error is itself an interpolated quantity (linear,
+        # not log-log -- it's dimensionless, not a spectrum value).
+        g4_rel_err = err_g4 / val_g4
+        fl_rel_err = fl_err_pct / 100.
+        fl_rel_err_on_g4 = rebin_linear(np.log10(emid_g4), np.log10(emid_fl), fl_rel_err)
+        combined_rel_err = np.sqrt(g4_rel_err**2 + fl_rel_err_on_g4**2)
+        ratio_err = ratio * combined_rel_err
+
         fig, ax, axr = make_ratio_figure()
         plot_spectrum(ax, el_g4, eh_g4, val_g4, f"Geant4 ({tag})", color, "-")
         plot_spectrum(ax, el_fl, eh_fl, val_fl, f"FLUKA ({fluka_tag})", "black", "--")
-        axr.plot(emid_g4, ratio, color=color, marker=".", markersize=3, linewidth=0.8)
+        ax.errorbar(emid_g4, val_g4, yerr=err_g4, fmt="none",
+                    ecolor=color, elinewidth=1, capsize=1.5, alpha=0.6)
+        ax.errorbar(emid_fl, val_fl, yerr=err_fl, fmt="none",
+                    ecolor="black", elinewidth=1, capsize=1.5, alpha=0.6)
+
+        axr.fill_between(emid_g4, ratio - ratio_err, ratio + ratio_err,
+                          color=color, alpha=0.25, linewidth=0,
+                          label="combined stat. error")
+        axr.scatter(emid_g4, ratio, color=color, marker=".", s=10, zorder=3)
         axr.axhline(1.0, color="black", linewidth=0.8, linestyle=":")
         axr.set_ylim(0, 2)
         axr.set_ylabel("G4 / FLUKA")
@@ -167,6 +221,8 @@ def compare_one(pname, g4dir, tag, flukadir, fluka_tag, outdir):
     else:
         fig, ax = plt.subplots(figsize=(7,5))
         plot_spectrum(ax, el_g4, eh_g4, val_g4, f"Geant4 ({tag})", color, "-")
+        ax.errorbar(emid_g4, val_g4, yerr=err_g4, fmt="none",
+                    ecolor=color, elinewidth=1, capsize=1.5, alpha=0.6)
         ax.set_xscale("log")
         ax.set_yscale("log")
         ax.set_xlabel("Kinetic Energy [GeV]")
@@ -282,7 +338,7 @@ def plot_usrbin(qname, g4dir, tag, flukadir, fluka_tag, outdir):
         ax.stairs(val_fl, np.append(zlo_fl, zhi_fl[-1]),
                   label=f"FLUKA ({fluka_tag})", color="black",
                   linestyle="--", linewidth=1.5)
-        axr.plot(zmid_g4, ratio, color=color, marker=".", markersize=3, linewidth=0.8)
+        axr.scatter(zmid_g4, ratio, color=color, marker=".", s=10, zorder=3)
         axr.axhline(1.0, color="black", linewidth=0.8, linestyle=":")
         axr.set_ylim(0, 2)
         axr.set_ylabel("G4 / FLUKA")
